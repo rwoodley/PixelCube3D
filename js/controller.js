@@ -5,12 +5,11 @@ function Controller(numFrames, divId) {
     that.numFrames = numFrames;
     that.divId = divId;
     that.cubeGeometry = new THREE.BoxGeometry(numFrames,numFrames,numFrames);
-//    that.cubeGeometry.applyMatrix(new THREE.Matrix4().makeTranslation(
-//        numFrames/2, numFrames/2, numFrames/2
-//    ))
+    that.videoFPS = 30;
+    that.myVideo = document.getElementById('video1');
 
 
-    that.animate = function(cubeMesh, planeMesh) {
+    that.animate = function(cubeMesh, planeMesh, uniforms) {
         that.frame++;
         if (that.frame%400 == 0) {
             that.phase++;
@@ -19,12 +18,33 @@ function Controller(numFrames, divId) {
             if (that.phase%3==0) {
                 that.phase = 0;
             }
+            that.updateVideo();
         }
         else {
+
             that.adjustCubeSize(cubeMesh);
             that.adjustPlanePosition(planeMesh);
         }
-        document.getElementById(that.divId).innerText = that.phase + ", " + that.frame;
+        document.getElementById(that.divId).innerText =
+            that.phase + ", "
+            + that.frame + ", "
+            + that.myVideo.webkitDecodedFrameCount + ","
+            + (30*that.myVideo.currentTime).toFixed(0);
+        uniforms.u_phase.value = that.phase;
+        uniforms.u_progress.value = that.frame/that.numFrames;
+        uniforms.u_phase.needsUpdate = true;
+        uniforms.u_progress.needsUpdate = true;
+    }
+    that.updateVideo = function() {
+        if (that.phase == 0)
+            pathToTexture = 'media/outputT.mp4';
+        else if (that.phase == 1)
+            pathToTexture = 'media/outputY.mp4';
+        else
+            pathToTexture = 'media/outputX.mp4';
+        that.myVideo.pause();
+        that.myVideo.setAttribute('src', pathToTexture);
+        that.myVideo.play();
     }
     that.resetCubeSize = function(mesh) {
         mesh.scale.set( 1.0, 1.0, 1.0);
@@ -41,21 +61,19 @@ function Controller(numFrames, divId) {
         that.phase == 1 ?  -offset : 1.0,
         that.phase == 0 ?  -offset : 1.0
         );
-
-//        mesh.scale.set(0.5,1.0,1.0);
     }
     that.adjustPlanePosition = function(mesh) {
         if (that.phase == 0) {
             mesh.rotation.set(0, 0, 0);
-            mesh.position.set(0,0,301-that.frame);
+            mesh.position.set(0,0,201-that.frame);
         }
         else if (that.phase == 1) {
-            mesh.rotation.set(Math.PI/2, 0, 0);
-            mesh.position.set(0,301-that.frame,0);
+            mesh.rotation.set(-Math.PI/2, 0, Math.PI/2.0);
+            mesh.position.set(0,201-that.frame,0);
         }
         else {
             mesh.rotation.set(0, Math.PI / 2, 0);
-            mesh.position.set(301-that.frame,0,0);
+            mesh.position.set(201-that.frame,0,0);
         }
     }
 }

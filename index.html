@@ -2,17 +2,20 @@
 <head>
     <title>My first Three.js app</title>
     <style>canvas { width: 100%; height: 100% }</style>
+    <script>
+    </script>
 </head>
-<body>
+<body onclick="StartUp()">
 <div id="statusText" style="display: block; position: fixed; top: 10%; left: 10%; font-size: 40px; color: red; ">
-    This is a test
+    Click to start.
 </div>
 <video  id="video1"
         src="media/outputT.mp4"
-        style="
-        position: absolute; left: 15px; top: 75px;"
+        style="display: none; position: absolute; left: 15px; top: 475px;"
         controls="true" autoplay="true">
 </video>
+<span id="statsDivInner" class="showhide">
+    <script src="lib/stats.min.js"></script>
 <script src="js/Controller.js"></script>
 <script src="lib/three.js"></script>
 <script src="lib/OrbitControls.js"></script>
@@ -27,79 +30,104 @@
 <script id="fragmentShader" type="x-shader/x-fragment">
  varying vec3 texcoords;
  uniform samplerCube u_samplerCube;
+ uniform int u_phase;
+ uniform float u_progress;
+ uniform int u_numFrames;
+
+        float adjustCoord(float coord, int side) {
+            if (side == u_phase) {
+                float x = float(u_numFrames/2);
+                return (coord + x)*(1.0 - u_progress) - x;
+            }
+            else
+                return coord;
+        }
 
         void main() {
-            if (abs(texcoords.z) > 1900.0) {
-                gl_FragColor = vec4(1.0,0.0,0.0,1.0);
-            }
-            else {
-//                vec3 newcoords = vec3(
-//                    (texcoords.x*0.5) - 100.0,
-//                    texcoords.y,
-//                    texcoords.z
-//                    );
-                gl_FragColor = textureCube(u_samplerCube, texcoords);
-            }
+            vec3 newcoords;
+                newcoords = vec3(
+                    adjustCoord(texcoords.x, 2),
+                    adjustCoord(texcoords.y, 1),
+                    adjustCoord(texcoords.z, 0)
+                );
+            gl_FragColor = textureCube(u_samplerCube, newcoords);
         }
 </script>
 <script>
-var pixelDim = 400;
-var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 10000);
-var controls = new THREE.OrbitControls( camera );
-var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-controller = new Controller(pixelDim, 'statusText');
-let loader = new THREE.TextureLoader();
-var uniforms = {
-    u_samplerCube: { type: "t",
-        value: THREE.ImageUtils.loadTextureCube( [
-        "media/x0400.jpg", "media/x0001.jpg",
-        "media/y0001.jpg", "media/y0400.jpg",
-        "media/t0001.jpg", "media/t0400.jpg" ] )
-        }
-};
+var firstTime = true;
+function StartUp() {
+    if (!firstTime) return;
+    firstTime = false;
+    console.log("Loading");
+    var pixelDim = 400;
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 10000);
+    var controls = new THREE.OrbitControls( camera );
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    controller = new Controller(pixelDim, 'statusText');
+    let loader = new THREE.TextureLoader();
+    var uniforms = {
+        u_samplerCube: { type: "t",
+            value: THREE.ImageUtils.loadTextureCube( [
+            "media/x0400.jpg", "media/x0001.jpg",
+            "media/y0001.jpg", "media/y0400.jpg",
+            "media/t0001.jpg", "media/t0400.jpg" ] )
+            },
+        u_phase: { type: "i", value: 0 },
+        u_progress: { type: "f", value: 0.0 },
+        u_numFrames: { type: "i", value: pixelDim }
+    };
 
-var shaderMaterial = new THREE.ShaderMaterial({
-    uniforms: uniforms,
-    vertexShader: document.getElementById( 'vertexShader' ).textContent,
-    fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-});
+    var shaderMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+    });
 
 
-let cubeMesh = new THREE.Mesh( controller.cubeGeometry, shaderMaterial );
+    let cubeMesh = new THREE.Mesh( controller.cubeGeometry, shaderMaterial );
 
-scene.add(cubeMesh);
+    scene.add(cubeMesh);
 
-var video = document.getElementById('video1');
-var texture = new THREE.VideoTexture(video);
-texture.needsUpdate;
-texture.minFilter = THREE.LinearFilter;
-texture.magFilter = THREE.LinearFilter;
+    var video = document.getElementById('video1');
+    var texture = new THREE.VideoTexture(video);
+    texture.needsUpdate;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
 
-var planeMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(pixelDim, pixelDim),
-    new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide })
-    );
-planeMesh.position.set(0,0,600);
-scene.add(planeMesh);
+    var planeMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(pixelDim, pixelDim),
+        new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide })
+        );
+    planeMesh.position.set(0,0,600);
+    scene.add(planeMesh);
 
-camera.position.z = 700;
-camera.position.y = 700;
-camera.position.x = 700;
-controls.update();
-axes = new THREE.AxisHelper( 15000 );
-scene.add(axes);
-
-function render() {
-
-    requestAnimationFrame(render);
+    camera.position.z = 700;
+    camera.position.y = 700;
+    camera.position.x = 700;
     controls.update();
-    renderer.render(scene, camera);
-    controller.animate(cubeMesh, planeMesh);
-};
-render();
+//    axes = new THREE.AxisHelper( 15000 );
+//    scene.add(axes);
+    controller.updateVideo();
+    var stats = new Stats();
+    document.getElementById('statsDivInner').appendChild( stats.domElement );
+
+    function render() {
+        stats.update();
+        setTimeout(function() {
+            requestAnimationFrame( render);
+        }, 1000/40.0
+        );
+        //requestAnimationFrame(render);
+
+        controls.update();
+        renderer.render(scene, camera);
+        controller.animate(cubeMesh, planeMesh, uniforms);
+    };
+    render();
+}
 
 </script>
 </body>
